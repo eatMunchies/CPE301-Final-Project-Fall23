@@ -7,6 +7,9 @@
 // *** MACROS ***
 #define RDA 0x80
 #define TBE 0x20
+// for pin manipulation!
+#define WRITE_HIGH(address, pin_num)  address |= (0x01 << pin_num);
+#define WRITE_LOW(address, pin_num)  address &= ~(0x01 << pin_num);
 
 // *** INCLUDES ***
 // LCD DISPLAY
@@ -27,6 +30,17 @@ volatile unsigned char* my_ADMUX = (unsigned char*) 0x7C;
 volatile unsigned char* my_ADCSRB = (unsigned char*) 0x7B;
 volatile unsigned char* my_ADCSRA = (unsigned char*) 0x7A;
 volatile unsigned int* my_ADC_DATA = (unsigned int*) 0x78;
+
+// LED Digital pins
+// 7: PH4 (RED), 8: PH5 (YELLOW), 9: PH6 (GREEN), 10: PB4 (BLUE)
+// for port Hs
+volatile unsigned char* port_h = (unsigned char*) 0x102;
+volatile unsigned char* ddr_h = (unsigned char*) 0x101;
+volatile unsigned char* pin_h = (unsigned char*) 0x100;
+// for port Bs
+volatile unsigned char* port_b = (unsigned char*) 0x25;
+volatile unsigned char* ddr_b = (unsigned char*) 0x24;
+volatile unsigned char* pin_b = (unsigned char*) 0x23;
 
 class State {
 public:
@@ -88,6 +102,7 @@ void setup()
     U0init(9600);
     adc_init();
     lcd.begin(16, 2);
+    led_init(); 
 }
 
 void loop() 
@@ -100,10 +115,27 @@ void loop()
   
   display(water_level, temp_humid);
 
+  // LED TEST
+  WRITE_HIGH(*port_h, 4);
+  WRITE_HIGH(*port_h, 5);
+  WRITE_HIGH(*port_h, 6);
+  WRITE_HIGH(*port_b, 4);
+
+
   // Add a delay if necessary
   delay(1000); // Delay for a second for example
 }
 
+void led_init()
+{
+  // ALL OUTPUT
+  // 7: PH4 (RED), 8: PH5 (YELLOW), 9: PH6 (GREEN), 10: PB4 (BLUE)
+  WRITE_HIGH(*ddr_h, 4); // PH4 ddr HIGH (output)
+  WRITE_HIGH(*ddr_h, 5); // PH5 ddr HIGH (output)
+  WRITE_HIGH(*ddr_h, 6); // PH6 ddr HIGH (output)
+  WRITE_HIGH(*ddr_b, 4); // PB4 ddr HIGH (output)
+
+}
 
 void adc_init()
 {

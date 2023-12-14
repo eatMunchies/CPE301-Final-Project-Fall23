@@ -3,6 +3,10 @@
     . Create State Class
         . attributes:
             . LED color
+                . BLUE: digital pin 10
+                . GREEN: digital pin 9
+                . YELLOW: digital pin 8
+                . RED: digital pin 7
             . ADC thresholds
                 . Temp and Humidity
                     LOW: 
@@ -12,3 +16,7 @@
                     HIGH: 
             . motor ON/OFF    
 3. LCR sensor outputs DONE 
+4. Setup buttons
+    . Monitor Start button via ISR
+    . Monitor Reset button, but via ISR?
+    . Monitor stop button, but via ISR?
