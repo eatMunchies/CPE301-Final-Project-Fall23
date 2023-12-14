@@ -4,15 +4,25 @@
 // Starting: 12/11/23
 // Due Date: 12/15/23
 
+// *** MACROS ***
 #define RDA 0x80
 #define TBE 0x20
 
+// *** INCLUDES ***
+// LCD DISPLAY
+#include <LiquidCrystal.h>
+const int RS = 22, EN = 2, D4 = 3, D5 = 4, D6 = 5, D7 = 6;
+LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
+
+// *** REGISTERS ***
+// SERIAL TRANSMISSION
 volatile unsigned char *myUCSR0A = (unsigned char *)0x00C0;
 volatile unsigned char *myUCSR0B = (unsigned char *)0x00C1;
 volatile unsigned char *myUCSR0C = (unsigned char *)0x00C2;
 volatile unsigned int  *myUBRR0  = (unsigned int *) 0x00C4;
 volatile unsigned char *myUDR0   = (unsigned char *)0x00C6;
  
+// ADC
 volatile unsigned char* my_ADMUX = (unsigned char*) 0x7C;
 volatile unsigned char* my_ADCSRB = (unsigned char*) 0x7B;
 volatile unsigned char* my_ADCSRA = (unsigned char*) 0x7A;
@@ -77,33 +87,18 @@ void setup()
 {
     U0init(9600);
     adc_init();
+    lcd.begin(16, 2);
 }
 
 void loop() 
 {
   // Read from the first sensor connected to A0 (channel 0)
-  unsigned int sensorValue1 = adc_read(0);
-  String sensorString1 = String(sensorValue1);
-  String sensorName1 = String("Temp and Humid: ");
-  for(int i = 0; i < sensorName1.length(); i++){
-    U0putchar(sensorName1[i]);
-  }
-  for(int i = 0; i < sensorString1.length(); i++){
-    U0putchar(sensorString1[i]);
-  }
-  U0putchar('\n');
+  unsigned int temp_humid = adc_read(0);
 
   // Read from the second sensor connected to A1 (channel 1)
-  unsigned int sensorValue2 = adc_read(1);
-  String sensorString2 = String(sensorValue2);
-  String sensorName2 = String("Water Level Detect: ");
-  for(int i = 0; i < sensorName2.length(); i++){
-    U0putchar(sensorName2[i]);
-  }
-  for(int i = 0; i < sensorString2.length(); i++){
-    U0putchar(sensorString2[i]);
-  }
-  U0putchar('\n');
+  unsigned int water_level = adc_read(1);
+  
+  display(water_level, temp_humid);
 
   // Add a delay if necessary
   delay(1000); // Delay for a second for example
@@ -172,4 +167,14 @@ void U0putchar(unsigned char U0pdata)
 {
   while((*myUCSR0A & TBE)==0);
   *myUDR0 = U0pdata;
+}
+
+void display(int water_level, int temp_humid){
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Water: ");
+  lcd.print(water_level);
+  lcd.setCursor(0, 1);
+  lcd.print("T/H: ");
+  lcd.print(temp_humid);
 }

@@ -11,4 +11,4 @@
                     LOW: 
                     HIGH: 
             . motor ON/OFF    
-3. LCR sensor outputs
+3. LCR sensor outputs DONE 
