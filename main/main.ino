@@ -51,58 +51,86 @@ public:
 
 class RUNNING : public State {
   void enter() override {
-
+    // LEDS
+    WRITE_LOW(*port_h, 4);
+    WRITE_LOW(*port_h, 5);
+    WRITE_LOW(*port_h, 6);
+    WRITE_HIGH(*port_b, 4); // BLUE
   }
   void update() override {
 
   }
   void exit() override {
-
+    // LEDS
+    WRITE_LOW(*port_b, 4);
   }
 };
 
 class IDLE : public State {
   void enter() override {
-
+    // LEDS
+    WRITE_LOW(*port_h, 4);
+    WRITE_LOW(*port_h, 5);
+    WRITE_HIGH(*port_h, 6); // GREEN
+    WRITE_LOW(*port_b, 4);
   }
   void update() override {
 
   }
   void exit() override {
-    
+    // LEDS
+    WRITE_LOW(*port_h, 6);
   }
 };
 
 class DISABLED : public State {
   void enter() override {
-
+    // LEDS
+    WRITE_LOW(*port_h, 4);
+    WRITE_HIGH(*port_h, 5); // YELLOW
+    WRITE_LOW(*port_h, 6);
+    WRITE_LOW(*port_b, 4);
   }
   void update() override {
 
   }
   void exit() override {
-    
+    WRITE_LOW(*port_h, 5);
   }
 };
 
 class ERROR : public State {
   void enter() override {
-
+    // LEDS
+    WRITE_HIGH(*port_h, 4); // RED
+    WRITE_LOW(*port_h, 5);
+    WRITE_LOW(*port_h, 6);
+    WRITE_LOW(*port_b, 4);
   }
   void update() override {
 
   }
   void exit() override {
-    
+    WRITE_LOW(*port_h, 4);
   }
 };
 
+// Create state instances
+RUNNING runningState;
+IDLE idleState;
+DISABLED disabledState;
+ERROR errorState;
+
+State* state;
+
 void setup()
 {
-    U0init(9600);
-    adc_init();
-    lcd.begin(16, 2);
-    led_init(); 
+    U0init(9600); // SERIAL IO
+    adc_init(); // ADC
+    lcd.begin(16, 2); // LCD
+    led_init(); // LEDS
+    state = &disabledState; // STATE
+    state->enter(); 
 }
 
 void loop() 
@@ -114,13 +142,6 @@ void loop()
   unsigned int water_level = adc_read(1);
   
   display(water_level, temp_humid);
-
-  // LED TEST
-  WRITE_HIGH(*port_h, 4);
-  WRITE_HIGH(*port_h, 5);
-  WRITE_HIGH(*port_h, 6);
-  WRITE_HIGH(*port_b, 4);
-
 
   // Add a delay if necessary
   delay(1000); // Delay for a second for example
@@ -135,6 +156,11 @@ void led_init()
   WRITE_HIGH(*ddr_h, 6); // PH6 ddr HIGH (output)
   WRITE_HIGH(*ddr_b, 4); // PB4 ddr HIGH (output)
 
+  // INIT TO OFF
+  WRITE_LOW(*port_h, 4); // RED
+  WRITE_LOW(*port_h, 5); // YELLOW
+  WRITE_LOW(*port_h, 6); // GREEN
+  WRITE_LOW(*port_b, 4); // BLUE
 }
 
 void adc_init()
