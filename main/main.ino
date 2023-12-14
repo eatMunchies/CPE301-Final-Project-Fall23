@@ -10,6 +10,7 @@
 // for pin manipulation!
 #define WRITE_HIGH(address, pin_num)  address |= (0x01 << pin_num);
 #define WRITE_LOW(address, pin_num)  address &= ~(0x01 << pin_num);
+#define PIN_READ(address, pin_num) (address & (1 << pin_num)) != 0;
 
 // *** INCLUDES ***
 // LCD DISPLAY
@@ -18,7 +19,7 @@ const int RS = 22, EN = 2, D4 = 3, D5 = 4, D6 = 5, D7 = 6;
 LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
 
 // *** REGISTERS ***
-// SERIAL TRANSMISSION
+// SERIAL TRANSMISSION 
 volatile unsigned char *myUCSR0A = (unsigned char *)0x00C0;
 volatile unsigned char *myUCSR0B = (unsigned char *)0x00C1;
 volatile unsigned char *myUCSR0C = (unsigned char *)0x00C2;
@@ -31,8 +32,17 @@ volatile unsigned char* my_ADCSRB = (unsigned char*) 0x7B;
 volatile unsigned char* my_ADCSRA = (unsigned char*) 0x7A;
 volatile unsigned int* my_ADC_DATA = (unsigned int*) 0x78;
 
-// LED Digital pins
-// 7: PH4 (RED), 8: PH5 (YELLOW), 9: PH6 (GREEN), 10: PB4 (BLUE)
+// Timer Pointers
+volatile unsigned char *myTCCR1A  = 0x80;
+volatile unsigned char *myTCCR1B  = 0x81;
+volatile unsigned char *myTCCR1C  = 0x82;
+volatile unsigned char *myTIMSK1  = 0x6F;
+volatile unsigned char *myTIFR1   = 0x36;
+volatile unsigned int  *myTCNT1   = 0x84;
+
+// GPIO
+// LEDS - 7: PH4 (RED), 8: PH5 (YELLOW), 9: PH6 (GREEN), 10: PB4 (BLUE)
+// BUTTONS - 11: PB5 (START), 12: PB6 (STOP), 13: PB7 (RESET)
 // for port Hs
 volatile unsigned char* port_h = (unsigned char*) 0x102;
 volatile unsigned char* ddr_h = (unsigned char*) 0x101;
@@ -123,13 +133,19 @@ ERROR errorState;
 
 State* state;
 
+// Button flags
+bool startButton;
+bool resetButton;
+bool stopButton;
+
 void setup()
 {
     U0init(9600); // SERIAL IO
     adc_init(); // ADC
     lcd.begin(16, 2); // LCD
-    led_init(); // LEDS
-    state = &disabledState; // STATE
+    gpio_init(); // GPIO (LEDS and Buttons)
+    setup_timer_regs(); // TIMER
+    state = &disabledState; // STATE, start in disabled mode
     state->enter(); 
 }
 
@@ -143,13 +159,27 @@ void loop()
   
   display(water_level, temp_humid);
 
-  // Add a delay if necessary
-  delay(1000); // Delay for a second for example
+  // BUTTON TEST
+  bool startButton = PIN_READ(*pin_b, 5)
+  bool stopButton = PIN_READ(*pin_b, 6);
+  bool resetButton = PIN_READ(*pin_b, 7);
+
+  if (startButton){
+    Serial.println("START");
+  }
+  if (stopButton){
+    Serial.println("STOP");
+  }
+  if (resetButton){
+    Serial.println("RESET");
+  }
+  // Delay for one second
+  delay(1000);
 }
 
-void led_init()
+void gpio_init()
 {
-  // ALL OUTPUT
+  // LEDs are OUTPUT
   // 7: PH4 (RED), 8: PH5 (YELLOW), 9: PH6 (GREEN), 10: PB4 (BLUE)
   WRITE_HIGH(*ddr_h, 4); // PH4 ddr HIGH (output)
   WRITE_HIGH(*ddr_h, 5); // PH5 ddr HIGH (output)
@@ -161,6 +191,32 @@ void led_init()
   WRITE_LOW(*port_h, 5); // YELLOW
   WRITE_LOW(*port_h, 6); // GREEN
   WRITE_LOW(*port_b, 4); // BLUE
+
+  // BUTTONS are INPUT (pull-up resistor)
+  // BUTTONS - 11: PB5 (), 12: PB6 (), 13: PB7 ()
+  WRITE_LOW(*ddr_b, 5); // START
+  WRITE_LOW(*ddr_b, 6); // STOP
+  WRITE_LOW(*ddr_b, 7); // RESET
+
+  // INIT PULL UP RESISTOR
+  WRITE_HIGH(*port_b, 5); // START
+  WRITE_HIGH(*port_b, 6); // STOP
+  WRITE_HIGH(*port_b, 7); // RESET
+}
+
+// Timer setup function
+void setup_timer_regs()
+{
+  // setup the timer control registers
+  *myTCCR1A= 0x00;
+  *myTCCR1B= 0X00;
+  *myTCCR1C= 0x00;
+  
+  // reset the TOV flag
+  *myTIFR1 |= 0x01;
+  
+  // enable the TOV interrupt
+  *myTIMSK1 |= 0x01;
 }
 
 void adc_init()
