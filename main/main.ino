@@ -15,7 +15,7 @@
 // *** INCLUDES ***
 // LCD DISPLAY
 #include <LiquidCrystal.h>
-const int RS = 22, EN = 2, D4 = 3, D5 = 4, D6 = 5, D7 = 6;
+const int RS = 22, EN = 24, D4 = 3, D5 = 4, D6 = 5, D7 = 6;
 LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
 
 // *** REGISTERS ***
@@ -42,7 +42,7 @@ volatile unsigned int  *myTCNT1   = 0x84;
 
 // GPIO
 // LEDS - 7: PH4 (RED), 8: PH5 (YELLOW), 9: PH6 (GREEN), 10: PB4 (BLUE)
-// BUTTONS - 11: PB5 (START), 12: PB6 (STOP), 13: PB7 (RESET)
+// BUTTONS - 12: PB6 (STOP), 13: PB7 (RESET)
 // for port Hs
 volatile unsigned char* port_h = (unsigned char*) 0x102;
 volatile unsigned char* ddr_h = (unsigned char*) 0x101;
@@ -51,6 +51,10 @@ volatile unsigned char* pin_h = (unsigned char*) 0x100;
 volatile unsigned char* port_b = (unsigned char*) 0x25;
 volatile unsigned char* ddr_b = (unsigned char*) 0x24;
 volatile unsigned char* pin_b = (unsigned char*) 0x23;
+
+// ISR
+const int startButtonPin = 2;
+const int interruptNumber = digitalPinToInterrupt(startButtonPin);
 
 class State {
 public:
@@ -144,6 +148,7 @@ void setup()
     adc_init(); // ADC
     lcd.begin(16, 2); // LCD
     gpio_init(); // GPIO (LEDS and Buttons)
+    isr_setup(); // ISR 
     setup_timer_regs(); // TIMER
     state = &disabledState; // STATE, start in disabled mode
     state->enter(); 
@@ -151,28 +156,26 @@ void setup()
 
 void loop() 
 {
+  // READ STUFF
   // Read from the first sensor connected to A0 (channel 0)
   unsigned int temp_humid = adc_read(0);
 
   // Read from the second sensor connected to A1 (channel 1)
   unsigned int water_level = adc_read(1);
+
+  // BUTTONS
+  // start button var automatically updated by ISR
+  stopButton = PIN_READ(*pin_b, 6);
+  resetButton = PIN_READ(*pin_b, 7);
   
+  // TEST ISR
+  Serial.println(startButton);
+
+  // UPDATE STATE
+
+  // DISPLAY STATE
   display(water_level, temp_humid);
 
-  // BUTTON TEST
-  bool startButton = PIN_READ(*pin_b, 5)
-  bool stopButton = PIN_READ(*pin_b, 6);
-  bool resetButton = PIN_READ(*pin_b, 7);
-
-  if (startButton){
-    Serial.println("START");
-  }
-  if (stopButton){
-    Serial.println("STOP");
-  }
-  if (resetButton){
-    Serial.println("RESET");
-  }
   // Delay for one second
   delay(1000);
 }
@@ -194,14 +197,25 @@ void gpio_init()
 
   // BUTTONS are INPUT (pull-up resistor)
   // BUTTONS - 11: PB5 (), 12: PB6 (), 13: PB7 ()
-  WRITE_LOW(*ddr_b, 5); // START
+  // WRITE_LOW(*ddr_b, 5); // START
   WRITE_LOW(*ddr_b, 6); // STOP
   WRITE_LOW(*ddr_b, 7); // RESET
 
   // INIT PULL UP RESISTOR
-  WRITE_HIGH(*port_b, 5); // START
+  // WRITE_HIGH(*port_b, 5); // START
   WRITE_HIGH(*port_b, 6); // STOP
   WRITE_HIGH(*port_b, 7); // RESET
+}
+
+// ISR setup function
+void isr_setup(){
+  pinMode(startButtonPin, INPUT_PULLUP);
+  attachInterrupt(interruptNumber, handleStartPress, FALLING);
+}
+
+// handle start button press
+void handleStartPress(){
+  startButton = true;
 }
 
 // Timer setup function
