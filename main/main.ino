@@ -18,6 +18,61 @@ volatile unsigned char* my_ADCSRB = (unsigned char*) 0x7B;
 volatile unsigned char* my_ADCSRA = (unsigned char*) 0x7A;
 volatile unsigned int* my_ADC_DATA = (unsigned int*) 0x78;
 
+class State {
+public:
+    virtual void enter() = 0; // Called when entering the state
+    virtual void update() = 0; // Called in the main loop when in this state
+    virtual void exit() = 0;  // Called when exiting the state
+};
+
+class RUNNING : public State {
+  void enter() override {
+
+  }
+  void update() override {
+
+  }
+  void exit() override {
+
+  }
+};
+
+class IDLE : public State {
+  void enter() override {
+
+  }
+  void update() override {
+
+  }
+  void exit() override {
+    
+  }
+};
+
+class DISABLED : public State {
+  void enter() override {
+
+  }
+  void update() override {
+
+  }
+  void exit() override {
+    
+  }
+};
+
+class ERROR : public State {
+  void enter() override {
+
+  }
+  void update() override {
+
+  }
+  void exit() override {
+    
+  }
+};
+
 void setup()
 {
     U0init(9600);

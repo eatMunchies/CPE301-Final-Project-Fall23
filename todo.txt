@@ -1,0 +1,14 @@
+1. setup adc to read from sensor DONE
+2. Setup States
+    . Create State Class
+        . attributes:
+            . LED color
+            . ADC thresholds
+                . Temp and Humidity
+                    LOW: 
+                    HIGH: 
+                . Water Level Detect
+                    LOW: 
+                    HIGH: 
+            . motor ON/OFF    
+3. LCR sensor outputs
