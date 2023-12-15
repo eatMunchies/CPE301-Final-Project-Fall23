@@ -135,7 +135,7 @@ int newState; // int for holding a number representing the next state to switch 
 unsigned int temp_humid;
 unsigned int water_level;
 static const unsigned water_threshold = 700; // TEST VALUES
-static const unsigned temp_humid_threshold = 1020; // TEST VALUES
+static const unsigned temp_humid_threshold = 780; // TEST VALUES
 unsigned int potPos;
 unsigned int desiredPos;
 unsigned int currentPos;

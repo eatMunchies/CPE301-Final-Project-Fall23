@@ -20,9 +20,9 @@
     . Monitor Start button via ISR DONE 
     . Monitor Reset button, but via ISR? no ISR DONE 
     . Monitor stop button, but via ISR? no ISR DONE 
-5. real time clock output via serial monitor 
+5. real time clock output via serial monitor  DONE
 6. implement fan DONE
 7. implement stepper motor DONE
 8. use timer (no delay!) DONE 
 9. tune thresholds
-10. tune stepper motor
+10. tune stepper motor DONE
