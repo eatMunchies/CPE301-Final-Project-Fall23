@@ -70,6 +70,7 @@ public:
 };
 
 State* state;
+int currentState; // for debugging 
 int newState; // int for holding a number representing the next state to switch to
 // 0 : stay same
 // 1 : RUNNING
@@ -92,6 +93,7 @@ class RUNNING : public State {
     WRITE_LOW(*port_h, 6);
     WRITE_HIGH(*port_b, 4); // BLUE
     displayData = true;
+    currentState = 1;
   }
   void update() override {
     if (stopButton){
@@ -119,6 +121,7 @@ class IDLE : public State {
     WRITE_HIGH(*port_h, 6); // GREEN
     WRITE_LOW(*port_b, 4);
     displayData = true;
+    currentState = 2;
   }
   void update() override {
     if (stopButton){
@@ -145,6 +148,7 @@ class DISABLED : public State {
     WRITE_LOW(*port_h, 6);
     WRITE_LOW(*port_b, 4);
     displayData = false;
+    currentState = 3;
   }
   void update() override {
     if (startButton){
@@ -164,6 +168,7 @@ class ERROR : public State {
     WRITE_LOW(*port_h, 6);
     WRITE_LOW(*port_b, 4);
     displayData = true;
+    currentState = 4;
   }
   void update() override {
     if (stopButton){
@@ -211,12 +216,26 @@ void loop()
   }
 
   // BUTTONS
+  // reset flags
   // start button var automatically updated by ISR
   stopButton = PIN_READ(*pin_b, 6);
   resetButton = PIN_READ(*pin_b, 7);
 
   // UPDATE STATE
   state->update();
+
+  // DEBUGGING
+  Serial.print("Current State: ");
+  Serial.println(currentState);
+  Serial.print("Next State: ");
+  Serial.println(newState);
+  Serial.print("Start: ");
+  Serial.println(startButton);
+  Serial.print("Reset: ");
+  Serial.println(resetButton);
+  Serial.print("Stop: ");
+  Serial.println(stopButton);
+  Serial.println();
 
   // change state
   changeState();
@@ -369,4 +388,12 @@ void changeState(){
   else if (newState == 4){
     state = &errorState;
   }
+
+  // enter the state!
+  state->enter();
+
+  // reset flags after state change
+  startButton = false;
+  stopButton = false;
+  resetButton = false;
 }

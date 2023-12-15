@@ -23,3 +23,4 @@
 5. real time clock output via serial monitor 
 6. implement fan
 7. implement motors
+8. use timer (no delay!)
