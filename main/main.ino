@@ -326,7 +326,6 @@ void loop()
   changeState();
 
   // delay
-  // my_delay(10); // delay for 500 milliseconds
   my_delay(50); // delay for 50 milliseconds overall
 }
 
@@ -411,6 +410,7 @@ void rtc_init()
 void stepper_init()
 {
   myStepper.setSpeed(100);
+  desiredPos = currentPos; // dont move on startup!
 }
 
 void control_fan(bool on)
