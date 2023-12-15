@@ -23,6 +23,6 @@
 5. real time clock output via serial monitor 
 6. implement fan DONE
 7. implement stepper motor DONE
-8. use timer (no delay!)
+8. use timer (no delay!) DONE 
 9. tune thresholds
 10. tune stepper motor

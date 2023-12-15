@@ -74,15 +74,23 @@ const int interruptNumber = digitalPinToInterrupt(startButtonPin);
 
 volatile unsigned long overflowCounter = 0; // Counter for the overflows
 volatile unsigned long delayCounter = 0; // Counter for main loop delay
+volatile unsigned long buttonCounter = 0;
 const unsigned long overflowsPerMinute = 60000 / 4.1; // Calculate overflows in one minute
 const unsigned long overflowsPer500ms = 500 / 4.1;
+bool readData = true;
+bool readButtons = true;
 ISR(TIMER1_OVF_vect){
   overflowCounter++;
   delayCounter++;
-  // if (overflowCounter >= overflowsPerMinute){
-  //   readData = true;
-  //   overflowCounter = 0;
-  // }
+  buttonCounter++;
+  if (overflowCounter >= overflowsPerMinute){
+    readData = true;
+    overflowCounter = 0;
+  }
+  if (buttonCounter >= overflowsPer500ms){
+    readButtons = true;
+    buttonCounter = true;
+  }
 }
 
 void my_delay(unsigned long duration){
@@ -108,10 +116,9 @@ int newState; // int for holding a number representing the next state to switch 
 // 4 : error
 
 // sensor data
-bool readData = true;
 unsigned int temp_humid;
 unsigned int water_level;
-static const unsigned water_threshold = 400; // TEST VALUES
+static const unsigned water_threshold = 700; // TEST VALUES
 static const unsigned temp_humid_threshold = 400; // TEST VALUES
 unsigned int potPos;
 unsigned int desiredPos;
@@ -188,6 +195,7 @@ class DISABLED : public State {
     WRITE_LOW(*port_h, 6);
     WRITE_LOW(*port_b, 4);
     displayData = false;
+    lcd.clear();
     currentState = 3;
   }
   void update() override {
@@ -218,6 +226,7 @@ class ERROR : public State {
     }
     if (resetButton){
       newState = 2; // IDLE
+      readData = true;
     }
   }
   void exit() override {
@@ -268,8 +277,11 @@ void loop()
   // BUTTONS
   // reset flags
   // start button var automatically updated by ISR
-  stopButton = PIN_READ(*pin_b, 6);
-  resetButton = PIN_READ(*pin_b, 7);
+  if (readButtons || buttonCounter >= overflowsPer500ms){
+    stopButton = PIN_READ(*pin_b, 6);
+    resetButton = PIN_READ(*pin_b, 7);   
+    readButtons = false;
+  }
 
   // UPDATE STATE
   state->update();
@@ -292,7 +304,7 @@ void loop()
 
   // delay
   // my_delay(10); // delay for 500 milliseconds
-  delay(500);
+  my_delay(50); // delay for 50 milliseconds overall
 }
 
 void gpio_init()
@@ -354,6 +366,9 @@ void setup_timer_regs()
   
   // enable the TOV interrupt
   *myTIMSK1 |= 0x01;
+
+  // start timer
+  *myTCCR1B |= 0x01;
 
   // enable global interrupts
   sei();
