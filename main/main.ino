@@ -127,6 +127,9 @@ class IDLE : public State {
     else if (water_level < water_threshold){
       newState = 4;
     }
+    else if (temp_humid > temp_humid_threshold){
+      newState = 1;
+    }
   }
   void exit() override {
     // LEDS
@@ -164,7 +167,10 @@ class ERROR : public State {
   }
   void update() override {
     if (stopButton){
-      newState = 3;
+      newState = 3; // DISABLED
+    }
+    if (resetButton){
+      newState = 2; // IDLE
     }
   }
   void exit() override {

@@ -21,3 +21,5 @@
     . Monitor Reset button, but via ISR? no ISR DONE 
     . Monitor stop button, but via ISR? no ISR DONE 
 5. real time clock output via serial monitor 
+6. implement fan
+7. implement motors
