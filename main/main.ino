@@ -72,6 +72,25 @@ bool stopButton;
 const int startButtonPin = 2;
 const int interruptNumber = digitalPinToInterrupt(startButtonPin);
 
+volatile unsigned long overflowCounter = 0; // Counter for the overflows
+volatile unsigned long delayCounter = 0; // Counter for main loop delay
+const unsigned long overflowsPerMinute = 60000 / 4.1; // Calculate overflows in one minute
+const unsigned long overflowsPer500ms = 500 / 4.1;
+ISR(TIMER1_OVF_vect){
+  overflowCounter++;
+  delayCounter++;
+  // if (overflowCounter >= overflowsPerMinute){
+  //   readData = true;
+  //   overflowCounter = 0;
+  // }
+}
+
+void my_delay(unsigned long duration){
+  unsigned long delayThreshold = duration / 4.1;
+  delayCounter = 0;
+  while (delayCounter < delayThreshold) {} // wait until delay finishes
+}
+
 class State {
 public:
     virtual void enter() = 0; // Called when entering the state
@@ -89,10 +108,11 @@ int newState; // int for holding a number representing the next state to switch 
 // 4 : error
 
 // sensor data
+bool readData = true;
 unsigned int temp_humid;
 unsigned int water_level;
-static const unsigned water_threshold = 610; // TEST VALUES
-static const unsigned temp_humid_threshold = 770; // TEST VALUES
+static const unsigned water_threshold = 400; // TEST VALUES
+static const unsigned temp_humid_threshold = 400; // TEST VALUES
 unsigned int potPos;
 unsigned int desiredPos;
 unsigned int currentPos;
@@ -227,11 +247,14 @@ void setup()
 void loop() 
 {
   // READ STUFF
-  // Read from the first sensor connected to A0 (channel 0)
-  temp_humid = adc_read(0);
+  if (readData || overflowCounter >= overflowsPerMinute){
+   // Read from the first sensor connected to A0 (channel 0)
+    temp_humid = adc_read(0);
 
-  // Read from the second sensor connected to A1 (channel 1)
-  water_level = adc_read(1);
+    // Read from the second sensor connected to A1 (channel 1)
+    water_level = adc_read(1);
+    readData = false;
+  }
 
   // Read potentiometer output connected to A2 for vent
   potPos = adc_read(2);
@@ -267,8 +290,9 @@ void loop()
   // change state
   changeState();
 
-  // Delay for one second
-  delay(100);
+  // delay
+  // my_delay(10); // delay for 500 milliseconds
+  delay(500);
 }
 
 void gpio_init()
@@ -318,6 +342,8 @@ void handleStartPress(){
 // Timer setup function
 void setup_timer_regs()
 {
+  // disable global interrupts
+  cli();
   // setup the timer control registers
   *myTCCR1A= 0x00;
   *myTCCR1B= 0X00;
@@ -328,6 +354,9 @@ void setup_timer_regs()
   
   // enable the TOV interrupt
   *myTIMSK1 |= 0x01;
+
+  // enable global interrupts
+  sei();
 }
 
 void stepper_init()
