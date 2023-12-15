@@ -92,3 +92,7 @@ The following state constraints were put in place to both produce a proper state
 1. Humidity and temperature should be continuously monitored and reported on LDC screen. Update once per minute. 
 2. System should respond to changes in vent position contorl
 3. Stop button sould turn fan motor OFF (if ON) and turn system to DISABLED
+
+### VIDEO
+
+https://drive.google.com/file/d/1xwQl1sIeGCkEn6b2YBbZ1kolc15HQ1Vv/view
