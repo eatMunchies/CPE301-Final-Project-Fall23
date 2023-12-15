@@ -17,6 +17,7 @@
 #include <LiquidCrystal.h>
 const int RS = 22, EN = 24, D4 = 3, D5 = 4, D6 = 5, D7 = 6;
 LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
+bool displayData;
 
 // *** REGISTERS ***
 // SERIAL TRANSMISSION 
@@ -52,6 +53,11 @@ volatile unsigned char* port_b = (unsigned char*) 0x25;
 volatile unsigned char* ddr_b = (unsigned char*) 0x24;
 volatile unsigned char* pin_b = (unsigned char*) 0x23;
 
+// Button flags
+bool startButton;
+bool resetButton;
+bool stopButton;
+
 // ISR
 const int startButtonPin = 2;
 const int interruptNumber = digitalPinToInterrupt(startButtonPin);
@@ -63,6 +69,21 @@ public:
     virtual void exit() = 0;  // Called when exiting the state
 };
 
+State* state;
+int newState; // int for holding a number representing the next state to switch to
+// 0 : stay same
+// 1 : RUNNING
+// 2 : idle
+// 3 : disabled
+// 4 : error
+
+// sensor data
+unsigned int temp_humid;
+unsigned int water_level;
+static const unsigned water_threshold = 400; // TEST VALUES
+static const unsigned temp_humid_threshold = 400; // TEST VALUES
+
+
 class RUNNING : public State {
   void enter() override {
     // LEDS
@@ -70,9 +91,19 @@ class RUNNING : public State {
     WRITE_LOW(*port_h, 5);
     WRITE_LOW(*port_h, 6);
     WRITE_HIGH(*port_b, 4); // BLUE
+    displayData = true;
   }
   void update() override {
-
+    if (stopButton){
+      newState = 3;
+    }
+    else if (temp_humid < temp_humid_threshold){
+      newState = 2;
+    }
+    else if (water_level < water_threshold){
+      newState = 4;
+    }
+    
   }
   void exit() override {
     // LEDS
@@ -87,9 +118,15 @@ class IDLE : public State {
     WRITE_LOW(*port_h, 5);
     WRITE_HIGH(*port_h, 6); // GREEN
     WRITE_LOW(*port_b, 4);
+    displayData = true;
   }
   void update() override {
-
+    if (stopButton){
+      newState = 3;
+    }
+    else if (water_level < water_threshold){
+      newState = 4;
+    }
   }
   void exit() override {
     // LEDS
@@ -104,9 +141,12 @@ class DISABLED : public State {
     WRITE_HIGH(*port_h, 5); // YELLOW
     WRITE_LOW(*port_h, 6);
     WRITE_LOW(*port_b, 4);
+    displayData = false;
   }
   void update() override {
-
+    if (startButton){
+      newState = 1;
+    }
   }
   void exit() override {
     WRITE_LOW(*port_h, 5);
@@ -120,9 +160,12 @@ class ERROR : public State {
     WRITE_LOW(*port_h, 5);
     WRITE_LOW(*port_h, 6);
     WRITE_LOW(*port_b, 4);
+    displayData = true;
   }
   void update() override {
-
+    if (stopButton){
+      newState = 3;
+    }
   }
   void exit() override {
     WRITE_LOW(*port_h, 4);
@@ -130,17 +173,10 @@ class ERROR : public State {
 };
 
 // Create state instances
-RUNNING runningState;
-IDLE idleState;
-DISABLED disabledState;
-ERROR errorState;
-
-State* state;
-
-// Button flags
-bool startButton;
-bool resetButton;
-bool stopButton;
+RUNNING runningState; // 1
+IDLE idleState; // 2
+DISABLED disabledState; // 3
+ERROR errorState; // 4
 
 void setup()
 {
@@ -158,23 +194,26 @@ void loop()
 {
   // READ STUFF
   // Read from the first sensor connected to A0 (channel 0)
-  unsigned int temp_humid = adc_read(0);
+  temp_humid = adc_read(0);
 
   // Read from the second sensor connected to A1 (channel 1)
-  unsigned int water_level = adc_read(1);
+  water_level = adc_read(1);
+
+  // DISPLAY STATE
+  if (displayData){
+    display(water_level, temp_humid);
+  }
 
   // BUTTONS
   // start button var automatically updated by ISR
   stopButton = PIN_READ(*pin_b, 6);
   resetButton = PIN_READ(*pin_b, 7);
-  
-  // TEST ISR
-  Serial.println(startButton);
 
   // UPDATE STATE
+  state->update();
 
-  // DISPLAY STATE
-  display(water_level, temp_humid);
+  // change state
+  changeState();
 
   // Delay for one second
   delay(1000);
@@ -305,4 +344,23 @@ void display(int water_level, int temp_humid){
   lcd.setCursor(0, 1);
   lcd.print("T/H: ");
   lcd.print(temp_humid);
+}
+
+void changeState(){
+  // change state based on newState int
+  if (newState == 0){
+    // do nothing!
+  }
+  else if (newState == 1){
+    state = &runningState;
+  }
+  else if (newState == 2){
+    state = &idleState;
+  }
+  else if (newState == 3){
+    state = &disabledState;
+  }
+  else if (newState == 4){
+    state = &errorState;
+  }
 }

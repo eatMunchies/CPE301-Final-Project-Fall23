@@ -24,11 +24,11 @@ This cooler works as a state machine switching between the following states:
 3. Green LED -> ON, rest OFF
 - ERROR:
 1. Motor OFF
-2. Monitor RESET Button via ISR, change to IDLE if water level is above threshold
+2. Monitor RESET Button, change to IDLE if water level is above threshold
 3. Error message displayed on LCD
 4. Red LED -> ON, rest OFF
 - RUNNING:
-1. Fan Motor ONN
+1. Fan Motor ON
 2. Move to IDLE if temp drops below threshold
 3. Move to ERROR if water drops below threshold
 4. Blue LED -> ON, rest OFF

@@ -16,7 +16,8 @@
                     HIGH: 
             . motor ON/OFF    
 3. LCR sensor outputs DONE 
-4. Setup buttons
-    . Monitor Start button via ISR
-    . Monitor Reset button, but via ISR?
-    . Monitor stop button, but via ISR?
+4. Setup buttons DONE 
+    . Monitor Start button via ISR DONE 
+    . Monitor Reset button, but via ISR? no ISR DONE 
+    . Monitor stop button, but via ISR? no ISR DONE 
+5. real time clock output via serial monitor 
