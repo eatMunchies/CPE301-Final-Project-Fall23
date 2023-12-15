@@ -19,6 +19,11 @@ const int RS = 22, EN = 24, D4 = 3, D5 = 4, D6 = 5, D7 = 6;
 LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
 bool displayData;
 
+// STEPPER
+#include <Stepper.h>
+const int stepsPerRevolution = 2038;
+Stepper myStepper = Stepper(stepsPerRevolution, 39, 41, 43, 45); // 1N1 = 39, 1N4 = 45
+
 // *** REGISTERS ***
 // SERIAL TRANSMISSION 
 volatile unsigned char *myUCSR0A = (unsigned char *)0x00C0;
@@ -44,6 +49,7 @@ volatile unsigned int  *myTCNT1   = 0x84;
 // GPIO
 // LEDS - 7: PH4 (RED), 8: PH5 (YELLOW), 9: PH6 (GREEN), 10: PB4 (BLUE)
 // BUTTONS - 12: PB6 (STOP), 13: PB7 (RESET)
+// FAN CONTROL - 31: PC6 (IN4), 33: PC4 (IN3), 35: PC2 (ON/OFF/SPEED)
 // for port Hs
 volatile unsigned char* port_h = (unsigned char*) 0x102;
 volatile unsigned char* ddr_h = (unsigned char*) 0x101;
@@ -52,6 +58,10 @@ volatile unsigned char* pin_h = (unsigned char*) 0x100;
 volatile unsigned char* port_b = (unsigned char*) 0x25;
 volatile unsigned char* ddr_b = (unsigned char*) 0x24;
 volatile unsigned char* pin_b = (unsigned char*) 0x23;
+// for port Cs
+volatile unsigned char* port_c = (unsigned char*) 0x28;
+volatile unsigned char* ddr_c = (unsigned char*) 0x27;
+volatile unsigned char* pin_c = (unsigned char*) 0x26;
 
 // Button flags
 bool startButton;
@@ -81,9 +91,13 @@ int newState; // int for holding a number representing the next state to switch 
 // sensor data
 unsigned int temp_humid;
 unsigned int water_level;
-static const unsigned water_threshold = 400; // TEST VALUES
-static const unsigned temp_humid_threshold = 400; // TEST VALUES
-
+static const unsigned water_threshold = 610; // TEST VALUES
+static const unsigned temp_humid_threshold = 770; // TEST VALUES
+unsigned int potPos;
+unsigned int desiredPos;
+unsigned int currentPos;
+void moveToPosition();
+void control_fan(bool);
 
 class RUNNING : public State {
   void enter() override {
@@ -94,15 +108,18 @@ class RUNNING : public State {
     WRITE_HIGH(*port_b, 4); // BLUE
     displayData = true;
     currentState = 1;
+    control_fan(true);
   }
   void update() override {
-    if (stopButton){
+    // stepper motor
+    moveToPosition();
+    if (stopButton){ // stop button
       newState = 3;
     }
-    else if (temp_humid < temp_humid_threshold){
+    else if (temp_humid < temp_humid_threshold){ // check temp thresh
       newState = 2;
     }
-    else if (water_level < water_threshold){
+    else if (water_level < water_threshold){ // check water thresh
       newState = 4;
     }
     
@@ -110,6 +127,7 @@ class RUNNING : public State {
   void exit() override {
     // LEDS
     WRITE_LOW(*port_b, 4);
+    control_fan(false);
   }
 };
 
@@ -124,13 +142,15 @@ class IDLE : public State {
     currentState = 2;
   }
   void update() override {
-    if (stopButton){
+    // stepper motor
+    moveToPosition();
+    if (stopButton){ // check stop button
       newState = 3;
     }
-    else if (water_level < water_threshold){
+    else if (water_level < water_threshold){ // check water thresh
       newState = 4;
     }
-    else if (temp_humid > temp_humid_threshold){
+    else if (temp_humid > temp_humid_threshold){ // check temp thresh
       newState = 1;
     }
   }
@@ -151,7 +171,9 @@ class DISABLED : public State {
     currentState = 3;
   }
   void update() override {
-    if (startButton){
+    // stepper motor 
+    moveToPosition();
+    if (startButton){ // start button
       newState = 1;
     }
   }
@@ -197,6 +219,7 @@ void setup()
     gpio_init(); // GPIO (LEDS and Buttons)
     isr_setup(); // ISR 
     setup_timer_regs(); // TIMER
+    stepper_init(); // STEPPER
     state = &disabledState; // STATE, start in disabled mode
     state->enter(); 
 }
@@ -209,6 +232,10 @@ void loop()
 
   // Read from the second sensor connected to A1 (channel 1)
   water_level = adc_read(1);
+
+  // Read potentiometer output connected to A2 for vent
+  potPos = adc_read(2);
+  desiredPos = map(potPos, 0, 1023, 0, stepsPerRevolution);
 
   // DISPLAY STATE
   if (displayData){
@@ -241,7 +268,7 @@ void loop()
   changeState();
 
   // Delay for one second
-  delay(1000);
+  delay(100);
 }
 
 void gpio_init()
@@ -269,6 +296,12 @@ void gpio_init()
   // WRITE_HIGH(*port_b, 5); // START
   WRITE_HIGH(*port_b, 6); // STOP
   WRITE_HIGH(*port_b, 7); // RESET
+
+  // FAN IS OUTPUT
+  // FAN CONTROL - 31: PC6 (IN4), 33: PC4 (IN3), 35: PC2 (ON/OFF/SPEED)
+  WRITE_HIGH(*ddr_c, 6);
+  WRITE_HIGH(*ddr_c, 4);
+  WRITE_HIGH(*ddr_c, 2);
 }
 
 // ISR setup function
@@ -295,6 +328,27 @@ void setup_timer_regs()
   
   // enable the TOV interrupt
   *myTIMSK1 |= 0x01;
+}
+
+void stepper_init()
+{
+  myStepper.setSpeed(100000);
+}
+
+void control_fan(bool on)
+{
+  // FAN CONTROL - 31: PC6 (IN4), 33: PC4 (IN3), 35: PC2 (ENB)
+  // IN3 HIGH, IN4 LOW -> Forward
+  // IN3 LOW, IN4 HIGH -> BACKWARD
+  // ENB HIGH -> ON, LOW -> OFF
+  if (on){
+    WRITE_LOW(*port_c, 6);
+    WRITE_HIGH(*port_c, 4);
+    WRITE_HIGH(*port_c, 2);
+  }
+  else{
+    WRITE_LOW(*port_c, 2);
+  }
 }
 
 void adc_init()
@@ -377,15 +431,19 @@ void changeState(){
     // do nothing!
   }
   else if (newState == 1){
+    state->exit();
     state = &runningState;
   }
   else if (newState == 2){
+    state->exit();
     state = &idleState;
   }
   else if (newState == 3){
+    state->exit();
     state = &disabledState;
   }
   else if (newState == 4){
+    state->exit();
     state = &errorState;
   }
 
@@ -396,4 +454,10 @@ void changeState(){
   startButton = false;
   stopButton = false;
   resetButton = false;
+}
+
+void moveToPosition(){
+  int stepsToMove = desiredPos - currentPos;
+  myStepper.step(stepsToMove);
+  currentPos = desiredPos;
 }

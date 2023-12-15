@@ -14,13 +14,15 @@
                 . Water Level Detect
                     LOW: 
                     HIGH: 
-            . motor ON/OFF    
+            . motor ON/OFF   DONE 
 3. LCR sensor outputs DONE 
 4. Setup buttons DONE 
     . Monitor Start button via ISR DONE 
     . Monitor Reset button, but via ISR? no ISR DONE 
     . Monitor stop button, but via ISR? no ISR DONE 
 5. real time clock output via serial monitor 
-6. implement fan
-7. implement motors
+6. implement fan DONE
+7. implement stepper motor DONE
 8. use timer (no delay!)
+9. tune thresholds
+10. tune stepper motor
