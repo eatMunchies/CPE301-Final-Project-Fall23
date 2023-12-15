@@ -24,6 +24,22 @@ bool displayData;
 const int stepsPerRevolution = 2038;
 Stepper myStepper = Stepper(stepsPerRevolution, 39, 41, 43, 45); // 1N1 = 39, 1N4 = 45
 
+// RTC
+#include <Wire.h>
+#include <RTClib.h>
+RTC_DS1307 rtc;
+DateTime now;
+
+String date_time_to_str(DateTime obj){
+  String output = String(obj.year()) + "-" + 
+                  String(obj.month()) + "-" + 
+                  String(obj.day()) + " " + 
+                  String(obj.hour()) + ":" + 
+                  String(obj.minute()) + ":" + 
+                  String(obj.second());
+  return output;
+}
+
 // *** REGISTERS ***
 // SERIAL TRANSMISSION 
 volatile unsigned char *myUCSR0A = (unsigned char *)0x00C0;
@@ -119,7 +135,7 @@ int newState; // int for holding a number representing the next state to switch 
 unsigned int temp_humid;
 unsigned int water_level;
 static const unsigned water_threshold = 700; // TEST VALUES
-static const unsigned temp_humid_threshold = 400; // TEST VALUES
+static const unsigned temp_humid_threshold = 1020; // TEST VALUES
 unsigned int potPos;
 unsigned int desiredPos;
 unsigned int currentPos;
@@ -143,7 +159,7 @@ class RUNNING : public State {
     if (stopButton){ // stop button
       newState = 3;
     }
-    else if (temp_humid < temp_humid_threshold){ // check temp thresh
+    else if (temp_humid >= temp_humid_threshold){ // check temp thresh
       newState = 2;
     }
     else if (water_level < water_threshold){ // check water thresh
@@ -177,7 +193,7 @@ class IDLE : public State {
     else if (water_level < water_threshold){ // check water thresh
       newState = 4;
     }
-    else if (temp_humid > temp_humid_threshold){ // check temp thresh
+    else if (temp_humid < temp_humid_threshold){ // check temp thresh
       newState = 1;
     }
   }
@@ -207,6 +223,7 @@ class DISABLED : public State {
   }
   void exit() override {
     WRITE_LOW(*port_h, 5);
+    readData = true;
   }
 };
 
@@ -226,11 +243,11 @@ class ERROR : public State {
     }
     if (resetButton){
       newState = 2; // IDLE
-      readData = true;
     }
   }
   void exit() override {
     WRITE_LOW(*port_h, 4);
+    readData = true;
   }
 };
 
@@ -249,6 +266,7 @@ void setup()
     isr_setup(); // ISR 
     setup_timer_regs(); // TIMER
     stepper_init(); // STEPPER
+    rtc_init(); // RTC
     state = &disabledState; // STATE, start in disabled mode
     state->enter(); 
 }
@@ -283,6 +301,9 @@ void loop()
     readButtons = false;
   }
 
+  // Datetime
+  now = rtc.now();
+
   // UPDATE STATE
   state->update();
 
@@ -297,6 +318,8 @@ void loop()
   Serial.println(resetButton);
   Serial.print("Stop: ");
   Serial.println(stopButton);
+  Serial.print("DateTime: ");
+  Serial.println(date_time_to_str(now));
   Serial.println();
 
   // change state
@@ -374,9 +397,20 @@ void setup_timer_regs()
   sei();
 }
 
+void rtc_init()
+{
+  Wire.begin();
+  rtc.begin();
+  if (!rtc.isrunning()) {
+    Serial.println("RTC is NOT running!");
+    // Set the RTC to the date and time this sketch was compiled
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+}
+
 void stepper_init()
 {
-  myStepper.setSpeed(100000);
+  myStepper.setSpeed(100);
 }
 
 void control_fan(bool on)
