@@ -308,19 +308,19 @@ void loop()
   state->update();
 
   // DEBUGGING
-  Serial.print("Current State: ");
-  Serial.println(currentState);
-  Serial.print("Next State: ");
-  Serial.println(newState);
-  Serial.print("Start: ");
-  Serial.println(startButton);
-  Serial.print("Reset: ");
-  Serial.println(resetButton);
-  Serial.print("Stop: ");
-  Serial.println(stopButton);
-  Serial.print("DateTime: ");
-  Serial.println(date_time_to_str(now));
-  Serial.println();
+  // Serial.print("Current State: ");
+  // Serial.println(currentState);
+  // Serial.print("Next State: ");
+  // Serial.println(newState);
+  // Serial.print("Start: ");
+  // Serial.println(startButton);
+  // Serial.print("Reset: ");
+  // Serial.println(resetButton);
+  // Serial.print("Stop: ");
+  // Serial.println(stopButton);
+  // Serial.print("DateTime: ");
+  // Serial.println(date_time_to_str(now));
+  // Serial.println();
 
   // change state
   changeState();
@@ -511,22 +511,32 @@ void changeState(){
   else if (newState == 1){
     state->exit();
     state = &runningState;
+    // report to UART!
+    state_change_report();
   }
   else if (newState == 2){
     state->exit();
     state = &idleState;
+    // report to UART!
+    state_change_report();
   }
   else if (newState == 3){
     state->exit();
     state = &disabledState;
+    // report to UART!
+    state_change_report();
   }
   else if (newState == 4){
     state->exit();
     state = &errorState;
+    // report to UART!
+    state_change_report();
   }
 
   // enter the state!
   state->enter();
+
+  newState = 0;
 
   // reset flags after state change
   startButton = false;
@@ -535,7 +545,42 @@ void changeState(){
 }
 
 void moveToPosition(){
+  int sensitivity = 100;
+  if (currentPos < desiredPos - sensitivity || currentPos > desiredPos + sensitivity){ // only change if significant difference
+    stepper_report(); // report to UART !
+  }
   int stepsToMove = desiredPos - currentPos;
   myStepper.step(stepsToMove);
   currentPos = desiredPos;
+}
+
+
+void stepper_report(){
+  String prefix = "STEPPER NEW POS: " + String(desiredPos);
+  String datetime = date_time_to_str(now);
+  String report = create_report(prefix, datetime);
+  serial_report(report);
+}
+
+void state_change_report(){
+  char* mapping[5] = {"NA", "RUNNING", "IDLE", "DISABLED", "ERROR"};
+  String curState = mapping[currentState];
+  String nextState = mapping[newState];
+  String prefix = "STATE CHANGE FROM " + curState + " TO " + nextState;
+  String datetime = date_time_to_str(now);
+  String report = create_report(prefix, datetime);
+  serial_report(report);
+}
+
+String create_report(String prefix, String datetime){
+  String report = prefix + " ||| " + datetime;
+  return report;
+}
+
+void serial_report(String report)
+{
+  for (int i = 0; i < report.length(); i++){
+    U0putchar(report[i]);
+  }
+  U0putchar('\n');
 }
